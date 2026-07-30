@@ -4,6 +4,7 @@ import '../models/post.dart';
 import 'list_page.dart';
 import 'messages_page.dart';
 import 'private_message_page.dart';
+import 'profile_page.dart';
 
 class MainPage extends StatefulWidget {
   final String username;
@@ -214,14 +215,19 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  void openProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:
-            Text('${widget.username} profile'),
+  Future<void> openProfile() async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => ProfilePage(
+        username: widget.username,
+        role: widget.role,
       ),
-    );
-  }
+    ),
+  );
+
+  setState(() {});
+}
 
   @override
   Widget build(BuildContext context) {
