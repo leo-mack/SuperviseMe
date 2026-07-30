@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/message.dart';
 import '../models/post.dart';
 import 'list_page.dart';
@@ -17,13 +18,11 @@ class MainPage extends StatefulWidget {
   });
 
   @override
-  State<MainPage> createState() =>
-      _MainPageState();
+  State<MainPage> createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
-  final TextEditingController postController =
-      TextEditingController();
+  final TextEditingController postController = TextEditingController();
 
   final List<Post> posts = [
     const Post(
@@ -31,7 +30,7 @@ class _MainPageState extends State<MainPage> {
       username: 'Dr Sarah Smith',
       role: 'Teacher',
       text:
-          'I am currently accepting final-year project students interested in artificial intelligence, data analysis and mobile application development.',
+          'I am currently accepting final-year project students interested in artificial intelligence, data analysis, and mobile application development.',
       time: '10 minutes ago',
     ),
     const Post(
@@ -39,7 +38,7 @@ class _MainPageState extends State<MainPage> {
       username: 'James Wilson',
       role: 'Student',
       text:
-          'I am looking for a supervisor for a Flutter project focused on helping students manage coursework deadlines.',
+          'I am looking for a supervisor for a Flutter project focused on helping university students manage their coursework deadlines.',
       time: '25 minutes ago',
     ),
     const Post(
@@ -47,7 +46,7 @@ class _MainPageState extends State<MainPage> {
       username: 'Dr Michael Brown',
       role: 'Teacher',
       text:
-          'New project idea available: developing a visual tool for explaining graph theory algorithms.',
+          'New project idea available: developing a visual tool for explaining graph theory algorithms such as Dijkstra, Prim, and Kruskal.',
       time: '1 hour ago',
     ),
     const Post(
@@ -55,21 +54,20 @@ class _MainPageState extends State<MainPage> {
       username: 'Emily Davis',
       role: 'Student',
       text:
-          'Does anyone have experience using Firebase with Flutter?',
+          'Does anyone have experience using Firebase with Flutter? I am considering it for my final-year project.',
       time: '2 hours ago',
     ),
   ];
 
   final Set<String> savedPostIds = {};
 
-  final Map<String, List<ChatMessage>>
-      conversations = {
+  final Map<String, List<ChatMessage>> conversations = {
     'Dr Sarah Smith': [
       const ChatMessage(
         senderUsername: 'Dr Sarah Smith',
         senderRole: 'Teacher',
         text:
-            'Hello. Feel free to ask me about the available AI projects.',
+            'Hello. Feel free to ask me about the available artificial intelligence projects.',
         time: '15 minutes ago',
       ),
     ],
@@ -82,8 +80,7 @@ class _MainPageState extends State<MainPage> {
   }
 
   void publishPost() {
-    final String postText =
-        postController.text.trim();
+    final String postText = postController.text.trim();
 
     if (postText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -101,8 +98,7 @@ class _MainPageState extends State<MainPage> {
       posts.insert(
         0,
         Post(
-          id:
-              'user_${DateTime.now().millisecondsSinceEpoch}',
+          id: 'user_post_${DateTime.now().millisecondsSinceEpoch}',
           username: widget.username,
           role: widget.role,
           text: postText,
@@ -112,6 +108,151 @@ class _MainPageState extends State<MainPage> {
     });
 
     postController.clear();
+  }
+
+  Future<void> editPost(Post post) async {
+    final TextEditingController editController =
+        TextEditingController(text: post.text);
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit Post'),
+          content: SizedBox(
+            width: 450,
+            child: TextField(
+              controller: editController,
+              minLines: 3,
+              maxLines: 7,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Edit your post...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final String updatedText =
+                    editController.text.trim();
+
+                if (updatedText.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'A post cannot be empty.',
+                      ),
+                    ),
+                  );
+
+                  return;
+                }
+
+                final int postIndex = posts.indexWhere(
+                  (Post currentPost) {
+                    return currentPost.id == post.id;
+                  },
+                );
+
+                if (postIndex == -1) {
+                  Navigator.pop(dialogContext);
+                  return;
+                }
+
+                setState(() {
+                  posts[postIndex] = Post(
+                    id: post.id,
+                    username: post.username,
+                    role: post.role,
+                    text: updatedText,
+                    time: 'Edited just now',
+                  );
+                });
+
+                Navigator.pop(dialogContext);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Post updated.'),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    editController.dispose();
+  }
+
+  Future<void> deletePost(Post post) async {
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Post'),
+          content: const Text(
+            'Are you sure you want to delete this post?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    setState(() {
+      posts.removeWhere(
+        (Post currentPost) {
+          return currentPost.id == post.id;
+        },
+      );
+
+      savedPostIds.remove(post.id);
+    });
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Post deleted.'),
+      ),
+    );
   }
 
   void toggleSavedPost(Post post) {
@@ -138,9 +279,7 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  Future<void> openPrivateMessage(
-    Post post,
-  ) async {
+  Future<void> openPrivateMessage(Post post) async {
     final List<ChatMessage> messages =
         conversations.putIfAbsent(
       post.username,
@@ -150,18 +289,21 @@ class _MainPageState extends State<MainPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            PrivateMessagePage(
-          currentUsername: widget.username,
-          currentRole: widget.role,
-          otherUsername: post.username,
-          otherRole: post.role,
-          messages: messages,
-        ),
+        builder: (BuildContext context) {
+          return PrivateMessagePage(
+            currentUsername: widget.username,
+            currentRole: widget.role,
+            otherUsername: post.username,
+            otherRole: post.role,
+            messages: messages,
+          );
+        },
       ),
     );
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> openListPage() async {
@@ -170,16 +312,20 @@ class _MainPageState extends State<MainPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ListPage(
-          posts: posts,
-          savedPostIds: savedPostIds,
-          onToggleSaved: toggleSavedPost,
-          onOpenMessage: openPrivateMessage,
-        ),
+        builder: (BuildContext context) {
+          return ListPage(
+            posts: posts,
+            savedPostIds: savedPostIds,
+            onToggleSaved: toggleSavedPost,
+            onOpenMessage: openPrivateMessage,
+          );
+        },
       ),
     );
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> openMessagesPage() async {
@@ -188,16 +334,38 @@ class _MainPageState extends State<MainPage> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MessagesPage(
-          currentUsername: widget.username,
-          currentRole: widget.role,
-          contacts: posts,
-          conversations: conversations,
-        ),
+        builder: (BuildContext context) {
+          return MessagesPage(
+            currentUsername: widget.username,
+            currentRole: widget.role,
+            contacts: posts,
+            conversations: conversations,
+          );
+        },
       ),
     );
 
-    setState(() {});
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> openProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (BuildContext context) {
+          return ProfilePage(
+            username: widget.username,
+            role: widget.role,
+          );
+        },
+      ),
+    );
+
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   bool isCurrentUsersPost(Post post) {
@@ -214,20 +382,6 @@ class _MainPageState extends State<MainPage> {
       ),
     );
   }
-
-  Future<void> openProfile() async {
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => ProfilePage(
-        username: widget.username,
-        role: widget.role,
-      ),
-    ),
-  );
-
-  setState(() {});
-}
 
   @override
   Widget build(BuildContext context) {
@@ -252,7 +406,6 @@ class _MainPageState extends State<MainPage> {
                 ),
               ),
             ),
-
             ListTile(
               leading: const Icon(
                 Icons.bookmark_outline,
@@ -264,12 +417,9 @@ class _MainPageState extends State<MainPage> {
                   : CircleAvatar(
                       radius: 13,
                       backgroundColor:
-                          const Color(
-                        0xFF1565C0,
-                      ),
+                          const Color(0xFF1565C0),
                       child: Text(
-                        savedPostIds.length
-                            .toString(),
+                        savedPostIds.length.toString(),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -278,7 +428,6 @@ class _MainPageState extends State<MainPage> {
                     ),
               onTap: openListPage,
             ),
-
             ListTile(
               leading: const Icon(
                 Icons.mail_outline,
@@ -296,9 +445,13 @@ class _MainPageState extends State<MainPage> {
         foregroundColor: Colors.white,
         centerTitle: true,
         leading: Builder(
-          builder: (context) {
+          builder: (BuildContext context) {
             return IconButton(
-              icon: const Icon(Icons.menu),
+              icon: const Icon(
+                Icons.menu,
+                size: 29,
+              ),
+              tooltip: 'Open menu',
               onPressed: () {
                 Scaffold.of(context).openDrawer();
               },
@@ -313,15 +466,17 @@ class _MainPageState extends State<MainPage> {
         ),
         actions: [
           Padding(
-            padding:
-                const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(right: 16),
             child: InkWell(
               onTap: openProfile,
+              borderRadius: BorderRadius.circular(30),
               child: Row(
                 children: [
                   Text(
                     widget.username,
                     style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -332,6 +487,7 @@ class _MainPageState extends State<MainPage> {
                     child: Icon(
                       Icons.person,
                       color: Color(0xFF1565C0),
+                      size: 27,
                     ),
                   ),
                 ],
@@ -349,28 +505,33 @@ class _MainPageState extends State<MainPage> {
                 child: SizedBox(
                   width: 600,
                   child: ListView.builder(
-                    padding:
-                        const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     itemCount: posts.length,
-                    itemBuilder: (context, index) {
-                      final Post post =
-                          posts[index];
+                    itemBuilder: (
+                      BuildContext context,
+                      int index,
+                    ) {
+                      final Post post = posts[index];
+                      final bool isOwnPost =
+                          isCurrentUsersPost(post);
 
                       return PostCard(
                         post: post,
                         isSaved:
-                            savedPostIds.contains(
-                          post.id,
-                        ),
-                        showActions:
-                            !isCurrentUsersPost(
-                          post,
-                        ),
+                            savedPostIds.contains(post.id),
+                        isOwnPost: isOwnPost,
+                        showOtherUserActions: !isOwnPost,
                         onToggleSaved: () {
                           toggleSavedPost(post);
                         },
                         onMessage: () {
                           openPrivateMessage(post);
+                        },
+                        onEdit: () {
+                          editPost(post);
+                        },
+                        onDelete: () {
+                          deletePost(post);
                         },
                       );
                     },
@@ -394,9 +555,11 @@ class _MainPageState extends State<MainPage> {
                 child: SizedBox(
                   width: 600,
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       IconButton(
                         onPressed: selectImage,
+                        tooltip: 'Add image',
                         icon: const Icon(
                           Icons.image_outlined,
                           color: Color(0xFF1565C0),
@@ -406,27 +569,25 @@ class _MainPageState extends State<MainPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: TextField(
-                          controller:
-                              postController,
+                          controller: postController,
                           minLines: 1,
                           maxLines: 4,
-                          decoration:
-                              InputDecoration(
-                            hintText:
-                                'Write a post...',
+                          textInputAction:
+                              TextInputAction.newline,
+                          decoration: InputDecoration(
+                            hintText: 'Write a post...',
                             filled: true,
-                            fillColor: const Color(
-                              0xFFF4F6F8,
+                            fillColor:
+                                const Color(0xFFF4F6F8),
+                            contentPadding:
+                                const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
                             ),
-                            border:
-                                OutlineInputBorder(
+                            border: OutlineInputBorder(
                               borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                22,
-                              ),
-                              borderSide:
-                                  BorderSide.none,
+                                  BorderRadius.circular(22),
+                              borderSide: BorderSide.none,
                             ),
                           ),
                         ),
@@ -434,23 +595,26 @@ class _MainPageState extends State<MainPage> {
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: publishPost,
-                        style:
-                            ElevatedButton.styleFrom(
+                        style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              const Color(
-                            0xFF1565C0,
-                          ),
-                          foregroundColor:
-                              Colors.white,
+                              const Color(0xFF1565C0),
+                          foregroundColor: Colors.white,
                           padding:
-                              const EdgeInsets
-                                  .symmetric(
+                              const EdgeInsets.symmetric(
                             horizontal: 22,
                             vertical: 17,
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(22),
+                          ),
                         ),
-                        child:
-                            const Text('Publish'),
+                        child: const Text(
+                          'Publish',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -467,43 +631,51 @@ class _MainPageState extends State<MainPage> {
 class PostCard extends StatelessWidget {
   final Post post;
   final bool isSaved;
-  final bool showActions;
+  final bool isOwnPost;
+  final bool showOtherUserActions;
   final VoidCallback onToggleSaved;
   final VoidCallback onMessage;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const PostCard({
     super.key,
     required this.post,
     required this.isSaved,
-    required this.showActions,
+    required this.isOwnPost,
+    required this.showOtherUserActions,
     required this.onToggleSaved,
     required this.onMessage,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin:
-          const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 16),
+      color: Colors.white,
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const CircleAvatar(
                   radius: 23,
-                  backgroundColor:
-                      Color(0xFFE3F2FD),
+                  backgroundColor: Color(0xFFE3F2FD),
                   child: Icon(
                     Icons.person,
                     color: Color(0xFF1565C0),
                   ),
                 ),
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -512,11 +684,11 @@ class PostCard extends StatelessWidget {
                       Text(
                         '${post.username} - ${post.role}',
                         style: const TextStyle(
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         post.time,
                         style: const TextStyle(
@@ -528,7 +700,7 @@ class PostCard extends StatelessWidget {
                   ),
                 ),
 
-                if (showActions) ...[
+                if (showOtherUserActions) ...[
                   IconButton(
                     tooltip: 'Message user',
                     onPressed: onMessage,
@@ -545,13 +717,61 @@ class PostCard extends StatelessWidget {
                     icon: Icon(
                       isSaved
                           ? Icons.check_circle
-                          : Icons
-                              .add_circle_outline,
-                      color:
-                          const Color(0xFF1565C0),
+                          : Icons.add_circle_outline,
+                      color: const Color(0xFF1565C0),
                     ),
                   ),
                 ],
+
+                if (isOwnPost)
+                  PopupMenuButton<String>(
+                    tooltip: 'Post options',
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: Color(0xFF1565C0),
+                    ),
+                    onSelected: (String option) {
+                      if (option == 'edit') {
+                        onEdit();
+                      } else if (option == 'delete') {
+                        onDelete();
+                      }
+                    },
+                    itemBuilder: (
+                      BuildContext context,
+                    ) {
+                      return const [
+                        PopupMenuItem<String>(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_outlined),
+                              SizedBox(width: 10),
+                              Text('Edit'),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem<String>(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                'Delete',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ];
+                    },
+                  ),
               ],
             ),
             const SizedBox(height: 16),

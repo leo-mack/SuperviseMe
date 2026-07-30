@@ -41,11 +41,14 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
 
-    subjectAreaController.text = widget.role == 'Teacher'
+    final bool isTeacher =
+        widget.role.toLowerCase() == 'teacher';
+
+    subjectAreaController.text = isTeacher
         ? 'Computer Science'
         : 'Software Development';
 
-    bioController.text = widget.role == 'Teacher'
+    bioController.text = isTeacher
         ? 'I supervise final-year projects relating to software development and mobile applications.'
         : 'Final-year student interested in developing useful software applications.';
   }
@@ -69,7 +72,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (subjectAreaController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Subject area cannot be empty.'),
+          content: Text(
+            'Subject area cannot be empty.',
+          ),
         ),
       );
 
@@ -79,7 +84,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (bioController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Bio cannot be empty.'),
+          content: Text(
+            'Bio cannot be empty.',
+          ),
         ),
       );
 
@@ -102,19 +109,30 @@ class _ProfilePageState extends State<ProfilePage> {
         interestController.text.trim();
 
     if (newInterest.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please enter an interest.',
+          ),
+        ),
+      );
+
       return;
     }
 
     final bool alreadyExists = interests.any(
-      (String interest) =>
-          interest.toLowerCase() ==
-          newInterest.toLowerCase(),
+      (String interest) {
+        return interest.toLowerCase() ==
+            newInterest.toLowerCase();
+      },
     );
 
     if (alreadyExists) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('That interest has already been added.'),
+          content: Text(
+            'That interest has already been added.',
+          ),
         ),
       );
 
@@ -154,6 +172,8 @@ class _ProfilePageState extends State<ProfilePage> {
       profilePosts.insert(
         0,
         ProfilePost(
+          id:
+              'profile_post_${DateTime.now().millisecondsSinceEpoch}',
           text: postText,
           time: 'Just now',
         ),
@@ -161,6 +181,157 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     profilePostController.clear();
+  }
+
+  Future<void> editProfilePost(
+    ProfilePost post,
+  ) async {
+    final TextEditingController editController =
+        TextEditingController(text: post.text);
+
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Edit Profile Post'),
+          content: SizedBox(
+            width: 450,
+            child: TextField(
+              controller: editController,
+              minLines: 3,
+              maxLines: 7,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Edit your post...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final String updatedText =
+                    editController.text.trim();
+
+                if (updatedText.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'A post cannot be empty.',
+                      ),
+                    ),
+                  );
+
+                  return;
+                }
+
+                final int postIndex =
+                    profilePosts.indexWhere(
+                  (ProfilePost currentPost) {
+                    return currentPost.id == post.id;
+                  },
+                );
+
+                if (postIndex == -1) {
+                  Navigator.pop(dialogContext);
+                  return;
+                }
+
+                setState(() {
+                  profilePosts[postIndex] = ProfilePost(
+                    id: post.id,
+                    text: updatedText,
+                    time: 'Edited just now',
+                  );
+                });
+
+                Navigator.pop(dialogContext);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Profile post updated.',
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1565C0),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    editController.dispose();
+  }
+
+  Future<void> deleteProfilePost(
+    ProfilePost post,
+  ) async {
+    final bool? shouldDelete =
+        await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Profile Post'),
+          content: const Text(
+            'Are you sure you want to delete this post?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    setState(() {
+      profilePosts.removeWhere(
+        (ProfilePost currentPost) {
+          return currentPost.id == post.id;
+        },
+      );
+    });
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Profile post deleted.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -191,7 +362,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: Colors.white,
                 elevation: 1,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(16),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(22),
@@ -199,7 +371,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       const CircleAvatar(
                         radius: 52,
-                        backgroundColor: Color(0xFFE3F2FD),
+                        backgroundColor:
+                            Color(0xFFE3F2FD),
                         child: Icon(
                           Icons.person,
                           size: 62,
@@ -249,7 +422,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: Colors.white,
                 elevation: 1,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(16),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(22),
@@ -264,20 +438,17 @@ class _ProfilePageState extends State<ProfilePage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
                       const Text(
                         'Subject Area',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       TextField(
-                        controller: subjectAreaController,
+                        controller:
+                            subjectAreaController,
                         readOnly: !isEditingProfile,
                         decoration: InputDecoration(
                           hintText:
@@ -285,23 +456,21 @@ class _ProfilePageState extends State<ProfilePage> {
                           filled: true,
                           fillColor: isEditingProfile
                               ? Colors.white
-                              : const Color(0xFFF4F6F8),
+                              : const Color(
+                                  0xFFF4F6F8,
+                                ),
                           border:
                               const OutlineInputBorder(),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
                       const Text(
                         'Bio',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       TextField(
                         controller: bioController,
                         readOnly: !isEditingProfile,
@@ -313,7 +482,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           filled: true,
                           fillColor: isEditingProfile
                               ? Colors.white
-                              : const Color(0xFFF4F6F8),
+                              : const Color(
+                                  0xFFF4F6F8,
+                                ),
                           border:
                               const OutlineInputBorder(),
                         ),
@@ -321,13 +492,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       if (isTeacher) ...[
                         const SizedBox(height: 20),
-
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: const Text(
                             'Available for supervision',
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
+                              fontWeight:
+                                  FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
@@ -352,7 +523,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       if (isEditingProfile) ...[
                         const SizedBox(height: 20),
-
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -360,11 +530,14 @@ class _ProfilePageState extends State<ProfilePage> {
                             style:
                                 ElevatedButton.styleFrom(
                               backgroundColor:
-                                  const Color(0xFF1565C0),
+                                  const Color(
+                                0xFF1565C0,
+                              ),
                               foregroundColor:
                                   Colors.white,
                               padding:
-                                  const EdgeInsets.symmetric(
+                                  const EdgeInsets
+                                      .symmetric(
                                 vertical: 15,
                               ),
                             ),
@@ -372,7 +545,8 @@ class _ProfilePageState extends State<ProfilePage> {
                               'Save Profile',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontWeight:
+                                    FontWeight.bold,
                               ),
                             ),
                           ),
@@ -389,7 +563,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: Colors.white,
                 elevation: 1,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(16),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(22),
@@ -404,7 +579,6 @@ class _ProfilePageState extends State<ProfilePage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 16),
 
                       if (interests.isEmpty)
@@ -433,13 +607,14 @@ class _ProfilePageState extends State<ProfilePage> {
                                             size: 18,
                                           )
                                         : null,
-                                onDeleted: isEditingProfile
-                                    ? () {
-                                        removeInterest(
-                                          interest,
-                                        );
-                                      }
-                                    : null,
+                                onDeleted:
+                                    isEditingProfile
+                                        ? () {
+                                            removeInterest(
+                                              interest,
+                                            );
+                                          }
+                                        : null,
                               );
                             },
                           ).toList(),
@@ -447,7 +622,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       if (isEditingProfile) ...[
                         const SizedBox(height: 18),
-
                         Row(
                           children: [
                             Expanded(
@@ -461,7 +635,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                   border:
                                       OutlineInputBorder(),
                                 ),
-                                onSubmitted: (_) {
+                                onSubmitted:
+                                    (String value) {
                                   addInterest();
                                 },
                               ),
@@ -478,7 +653,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                 foregroundColor:
                                     Colors.white,
                                 padding:
-                                    const EdgeInsets.symmetric(
+                                    const EdgeInsets
+                                        .symmetric(
                                   horizontal: 20,
                                   vertical: 18,
                                 ),
@@ -499,7 +675,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: Colors.white,
                 elevation: 1,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(16),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(22),
@@ -516,9 +693,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
                       TextField(
                         controller:
                             profilePostController,
@@ -532,21 +707,23 @@ class _ProfilePageState extends State<ProfilePage> {
                               const OutlineInputBorder(),
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
                       Align(
                         alignment: Alignment.centerRight,
                         child: ElevatedButton(
-                          onPressed: publishProfilePost,
+                          onPressed:
+                              publishProfilePost,
                           style:
                               ElevatedButton.styleFrom(
                             backgroundColor:
-                                const Color(0xFF1565C0),
+                                const Color(
+                              0xFF1565C0,
+                            ),
                             foregroundColor:
                                 Colors.white,
                             padding:
-                                const EdgeInsets.symmetric(
+                                const EdgeInsets
+                                    .symmetric(
                               horizontal: 22,
                               vertical: 14,
                             ),
@@ -554,7 +731,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: const Text(
                             'Publish',
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                              fontWeight:
+                                  FontWeight.bold,
                             ),
                           ),
                         ),
@@ -588,6 +766,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     username: widget.username,
                     role: widget.role,
                     post: post,
+                    onEdit: () {
+                      editProfilePost(post);
+                    },
+                    onDelete: () {
+                      deleteProfilePost(post);
+                    },
                   ),
             ],
           ),
@@ -598,10 +782,12 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 class ProfilePost {
+  final String id;
   final String text;
   final String time;
 
   const ProfilePost({
+    required this.id,
     required this.text,
     required this.time,
   });
@@ -611,12 +797,16 @@ class ProfilePostCard extends StatelessWidget {
   final String username;
   final String role;
   final ProfilePost post;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const ProfilePostCard({
     super.key,
     required this.username,
     required this.role,
     required this.post,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -635,6 +825,8 @@ class ProfilePostCard extends StatelessWidget {
               CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 const CircleAvatar(
                   radius: 23,
@@ -645,9 +837,7 @@ class ProfilePostCard extends StatelessWidget {
                     color: Color(0xFF1565C0),
                   ),
                 ),
-
                 const SizedBox(width: 12),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
@@ -661,6 +851,7 @@ class ProfilePostCard extends StatelessWidget {
                               FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         post.time,
                         style: const TextStyle(
@@ -671,11 +862,57 @@ class ProfilePostCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                PopupMenuButton<String>(
+                  tooltip: 'Post options',
+                  icon: const Icon(
+                    Icons.more_vert,
+                    color: Color(0xFF1565C0),
+                  ),
+                  onSelected: (String option) {
+                    if (option == 'edit') {
+                      onEdit();
+                    } else if (option == 'delete') {
+                      onDelete();
+                    }
+                  },
+                  itemBuilder: (
+                    BuildContext context,
+                  ) {
+                    return const [
+                      PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined),
+                            SizedBox(width: 10),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Delete',
+                              style: TextStyle(
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ];
+                  },
+                ),
               ],
             ),
-
             const SizedBox(height: 16),
-
             Text(
               post.text,
               style: const TextStyle(
