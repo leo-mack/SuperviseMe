@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../models/user_account.dart';
+import '../services/authentication_service.dart';
 import 'main_page.dart';
 import 'registered_login_page.dart';
 
@@ -10,12 +13,20 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController usernameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController usernameController =
+      TextEditingController();
+
+  final TextEditingController emailController =
+      TextEditingController();
+
+  final TextEditingController passwordController =
+      TextEditingController();
 
   String? selectedRole;
   List<String> errorMessages = [];
+
+  bool passwordIsHidden = true;
+  bool isSubmitting = false;
 
   @override
   void dispose() {
@@ -26,70 +37,54 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void createAccount() {
-    final String username = usernameController.text.trim();
-    final String email = emailController.text.trim();
-    final String password = passwordController.text;
-
-    final List<String> newErrors = [];
-
-    if (username.isEmpty) {
-      newErrors.add('Username cannot be empty.');
-    }
-
-    if (email.isEmpty) {
-      newErrors.add('Email address cannot be empty.');
-    } else if (!email.toLowerCase().endsWith('@gmail.com')) {
-      newErrors.add('Email address must end with @gmail.com.');
-    }
-
-    if (password.isEmpty) {
-      newErrors.add('Password cannot be empty.');
-    } else {
-      if (password.length < 8) {
-        newErrors.add(
-          'Password must be at least 8 characters long.',
-        );
-      }
-
-      if (!RegExp(r'[0-9]').hasMatch(password)) {
-        newErrors.add(
-          'Password must contain at least one digit.',
-        );
-      }
-
-      if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) {
-        newErrors.add(
-          'Password must contain at least one special character.',
-        );
-      }
-    }
-
-    if (selectedRole == null) {
-      newErrors.add('Please select Student or Teacher.');
+    if (isSubmitting) {
+      return;
     }
 
     setState(() {
-      errorMessages = newErrors;
+      isSubmitting = true;
+      errorMessages = [];
     });
 
-    if (newErrors.isEmpty) {
-      Navigator.pushReplacement(
-  context,
-  MaterialPageRoute(
-    builder: (context) => MainPage(
-      username: username,
-      role: selectedRole!,
-    ),
-  ),
-);
+    final AuthenticationResult result =
+        AuthenticationService.instance.register(
+      username: usernameController.text,
+      email: emailController.text,
+      password: passwordController.text,
+      role: selectedRole,
+    );
+
+    if (!result.success) {
+      setState(() {
+        errorMessages = result.errors;
+        isSubmitting = false;
+      });
+
+      return;
     }
+
+    final UserAccount account = result.user!;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (BuildContext context) {
+          return MainPage(
+            username: account.username,
+            role: account.role,
+          );
+        },
+      ),
+    );
   }
 
   void openRegisteredLoginPage() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const RegisteredLoginPage(),
+        builder: (BuildContext context) {
+          return const RegisteredLoginPage();
+        },
       ),
     );
   }
@@ -111,13 +106,19 @@ class _LoginPageState extends State<LoginPage> {
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: SizedBox(
-            width: 400,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 400,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
+                  key: const ValueKey(
+                    'registrationUsernameField',
+                  ),
                   controller: usernameController,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     hintText: 'Create Username',
                     border: OutlineInputBorder(),
@@ -127,8 +128,12 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 18),
 
                 TextField(
+                  key: const ValueKey(
+                    'registrationEmailField',
+                  ),
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     hintText: 'Enter Email Address',
                     border: OutlineInputBorder(),
@@ -138,11 +143,35 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 18),
 
                 TextField(
+                  key: const ValueKey(
+                    'registrationPasswordField',
+                  ),
                   controller: passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: passwordIsHidden,
+                  onSubmitted: (_) {
+                    createAccount();
+                  },
+                  decoration: InputDecoration(
                     hintText: 'Create Password',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      key: const ValueKey(
+                        'registrationPasswordVisibilityButton',
+                      ),
+                      tooltip: passwordIsHidden
+                          ? 'Show password'
+                          : 'Hide password',
+                      onPressed: () {
+                        setState(() {
+                          passwordIsHidden = !passwordIsHidden;
+                        });
+                      },
+                      icon: Icon(
+                        passwordIsHidden
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                    ),
                   ),
                 ),
 
@@ -158,8 +187,15 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 8),
 
                 DropdownButtonFormField<String>(
+                  key: const ValueKey(
+                    'registrationRoleDropdown',
+                  ),
                   initialValue: selectedRole,
-                  hint: const Text('Choose Student or Teacher'),
+                  isExpanded: true,
+                  hint: const Text(
+                    'Choose Student or Teacher',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                   ),
@@ -185,7 +221,12 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: createAccount,
+                    key: const ValueKey(
+                      'createAccountButton',
+                    ),
+                    onPressed: isSubmitting
+                        ? null
+                        : createAccount,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1565C0),
                       foregroundColor: Colors.white,
@@ -193,9 +234,11 @@ class _LoginPageState extends State<LoginPage> {
                         vertical: 16,
                       ),
                     ),
-                    child: const Text(
-                      'Create Account',
-                      style: TextStyle(
+                    child: Text(
+                      isSubmitting
+                          ? 'Creating Account...'
+                          : 'Create Account',
+                      style: const TextStyle(
                         fontSize: 16,
                       ),
                     ),
@@ -205,6 +248,9 @@ class _LoginPageState extends State<LoginPage> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
+                    key: const ValueKey(
+                      'alreadyRegisteredButton',
+                    ),
                     onPressed: openRegisteredLoginPage,
                     child: const Text(
                       'Already registered?',
@@ -217,18 +263,40 @@ class _LoginPageState extends State<LoginPage> {
 
                 if (errorMessages.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  for (final String message in errorMessages)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 5),
-                      child: Text(
-                        message,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+
+                  Container(
+                    key: const ValueKey(
+                      'registrationErrorContainer',
                     ),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      border: Border.all(
+                        color: Colors.red,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final String message in errorMessages)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: 5,
+                            ),
+                            child: Text(
+                              message,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ],
             ),
